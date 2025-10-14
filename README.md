@@ -78,6 +78,13 @@ Here, we'll click on "Create client"
 
 - Here you'll need to add the scope of authorization that the EM needs to do the integrations
 - Using the Scopes from the EM Configuration page, either search the table or just copy/paste them into the "Manually add scopes" section.
+
+```
+https://www.googleapis.com/auth/photoslibrary.edit.appcreateddata,
+https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata,
+https://www.googleapis.com/auth/photoslibrary.appendonly
+```
+  
 - If you manually added, be sure to click "Add to table"
 - Click Update!
 - Click Save!
