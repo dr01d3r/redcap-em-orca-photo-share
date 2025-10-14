@@ -1,0 +1,18 @@
+{
+    "name": "kadolphc/redcap-em-orca-photo-share",
+    "config": {
+        "autoloader-suffix": "_ORCA_PHOTO_SHARE"
+    },
+    "require": {
+        "google/photos-library": "^1.7",
+        "google/apiclient": "^2.18"
+    },
+    "scripts": {
+        "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
+    },
+    "extra": {
+        "google/apiclient-services": [
+            ""
+        ]
+    }
+}

@@ -1,0 +1,9 @@
+# NodeJS
+/node_modules/
+
+# Laravel Mix Build Folder
+/dist/
+
+# Composer
+composer.phar
+/vendor/

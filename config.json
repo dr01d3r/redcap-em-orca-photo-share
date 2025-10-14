@@ -1,0 +1,121 @@
+{
+  "name": "Orca Photo Share",
+  "namespace": "OrcaPhotoShare\\ExternalModule",
+  "description": "External Module for extracting images from a Photos REDCap Project and uploading them into a Google Photos Album",
+  "authors": [
+    {
+      "name": "Chris Kadolph",
+      "email": "kadolph.christopher@marshfieldresearch.org",
+      "institution": "Marshfield Clinic Research Institute"
+    },
+    {
+      "name": "Leila Deering",
+      "email": "deering.leila@marshfieldresearch.org",
+      "institution": "Marshfield Clinic Research Institute"
+    }
+  ],
+  "framework-version": 16,
+  "links": {
+    "project": [
+      {
+        "name": "Google Photos Configuration",
+        "icon": "fas fa-gears",
+        "url": "views/config.php",
+        "show-header-and-footer": true
+      },
+      {
+        "name": "Google Photos Runner",
+        "icon": "fas fa-images",
+        "url": "views/index.php",
+        "show-header-and-footer": true
+      }
+    ]
+  },
+  "auth-ajax-actions": [
+    "initialize-config-dashboard",
+    "initialize-main-dashboard",
+    "set-client-info",
+    "set-album-name"
+  ],
+  "crons": [
+    {
+      "cron_name": "google_photos_cron",
+      "cron_description": "Push images from REDCap to a Google Photos Album!",
+      "method": "cronEntryPoint",
+      "cron_frequency": "1800",
+      "cron_max_run_time": "300"
+    }
+  ],
+  "project-settings": [
+    {
+      "key": "cron-enabled",
+      "name": "Cron Job Enabled",
+      "required": true,
+      "type": "dropdown",
+      "choices": [
+        {
+          "value": "enabled",
+          "name": "Enabled"
+        },
+        {
+          "value": "disabled",
+          "name": "Disabled"
+        }
+      ]
+    },
+    {
+      "key": "client_id",
+      "name": "Google Client ID",
+      "type": "text",
+      "hidden": true
+    },
+    {
+      "key": "client_secret",
+      "name": "Google Client Secret",
+      "type": "text",
+      "hidden": true
+    },
+    {
+      "key": "refresh_token",
+      "name": "Google Refresh Token",
+      "type": "text",
+      "hidden": true
+    },
+    {
+      "key": "refresh_token_expires",
+      "name": "Google Refresh Token Expiration Date",
+      "type": "text",
+      "hidden": true
+    },
+    {
+      "key": "album_name",
+      "name": "Google Photos Album Name",
+      "type": "text",
+      "hidden": true
+    },
+    {
+      "key": "album_id",
+      "name": "Google Photos Album ID",
+      "type": "text",
+      "hidden": true
+    }
+  ],
+  "system-settings": [
+    {
+      "key": "system-cron-enabled",
+      "name": "Cron Jobs Enabled",
+      "required": true,
+      "type": "dropdown",
+      "choices": [
+        {
+          "value": "enabled",
+          "name": "Enabled"
+        },
+        {
+          "value": "disabled",
+          "name": "Disabled"
+        }
+      ]
+    }
+  ]
+}

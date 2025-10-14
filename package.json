@@ -1,0 +1,29 @@
+{
+  "name": "redcap-em-google-photos",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Takes images uploaded to REDCap and pushes them into a configured Google Photos Album.",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@popperjs/core": "^2.11.8",
+    "@primeuix/utils": "^0.3.0",
+    "@primevue/core": "^4.2.1",
+    "@primevue/themes": "^4.2.1",
+    "bootstrap": "^5.3.3",
+    "lodash": "^4.17.21",
+    "luxon": "^3.5.0",
+    "primevue": "^4.2.1",
+    "qs": "^6.12.3",
+    "vue": "^3.3.10"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^4.5.1",
+    "prettier": "^3.6.2",
+    "sass": "^1.93.2",
+    "vite": "^5.0.5"
+  }
+}
