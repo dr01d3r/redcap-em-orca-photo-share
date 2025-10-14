@@ -13,15 +13,6 @@ use JsonException;
 
 trait GooglePhotosUtils {
 
-    const AUTH_SCOPE = [
-        "https://www.googleapis.com/auth/photoslibrary.edit.appcreateddata",
-        "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata",
-        "https://www.googleapis.com/auth/photoslibrary.appendonly",
-//        "https://www.googleapis.com/auth/photoslibrary",
-//        "https://www.googleapis.com/auth/photoslibrary.sharing",
-//        "https://www.googleapis.com/auth/photoslibrary.readonly"
-    ];
-
     private $_album_id = null;
     private $_credentials = null;
     private $_authCredentials = null;

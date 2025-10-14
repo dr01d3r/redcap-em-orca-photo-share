@@ -20,4 +20,10 @@ class ExternalModule extends AbstractExternalModule {
     use REDCapUtils;
     use RequestHandlers;
     use GooglePhotosUtils;
+
+    const AUTH_SCOPE = [
+        "https://www.googleapis.com/auth/photoslibrary.edit.appcreateddata",
+        "https://www.googleapis.com/auth/photoslibrary.readonly.appcreateddata",
+        "https://www.googleapis.com/auth/photoslibrary.appendonly"
+    ];
 }
