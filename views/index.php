@@ -4,7 +4,6 @@
 $module->addTime();
 $module->initializeJavascriptModuleObject();
 
-$module->preout($module->handleGetPhotos($project_id));
 ?>
     <div id="GOOGLE_PHOTOS_INDEX"></div>
     <script>

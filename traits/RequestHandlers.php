@@ -22,6 +22,12 @@ trait RequestHandlers {
                 case "set-album-name":
                     $response = $this->handleSetAlbumName($project_id, $payload);
                     break;
+                case "get-auth-url":
+                    $response = $this->handleGetAuthorizationUrl($project_id);
+                    break;
+                case "do-api-runner":
+                    $response = $this->handleGetPhotos($project_id);
+                    break;
                 default:
                     $response["errors"][] = "Unable to process request. Action '$action' is invalid.";
                     break;

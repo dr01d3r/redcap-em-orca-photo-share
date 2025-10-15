@@ -35,7 +35,9 @@
     "initialize-config-dashboard",
     "initialize-main-dashboard",
     "set-client-info",
-    "set-album-name"
+    "set-album-name",
+    "get-auth-url",
+    "do-api-runner"
   ],
   "crons": [
     {

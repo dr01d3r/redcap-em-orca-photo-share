@@ -2,11 +2,13 @@
 namespace OrcaPhotoShare\ExternalModule;
 
 use Exception;
+use Google\ApiCore\ApiException;
+use Google\ApiCore\ValidationException;
 
 trait ModuleUtils {
 
-    function getModuleConfig($project_id) {
-        return [
+    function getModuleConfig($project_id, $obfuscate = false) {
+        $config = [
             "album_name" => $this->getProjectSetting("album_name", $project_id),
             "album_id" => $this->getProjectSetting("album_id", $project_id),
             "client_id" => $this->getProjectSetting("client_id", $project_id),
@@ -17,6 +19,18 @@ trait ModuleUtils {
             "redirect_uri" => $this->getUrl("callback.php", false, true),
             "scopes" => ExternalModule::AUTH_SCOPE
         ];
+
+        if ($obfuscate === true) {
+            // obfuscate/remove the secrets
+            if (!empty($config["client_secret"])) {
+                $config["client_secret"] = str_pad("", 4, "*") . substr($config["client_secret"], -4);
+            }
+            if (!empty($config["refresh_token"])) {
+                $config["refresh_token"] = str_pad("", 4, "*") . substr($config["refresh_token"], -4);
+            }
+        }
+
+        return $config;
     }
 
     function validateConfig($config): bool
@@ -29,25 +43,24 @@ trait ModuleUtils {
     }
 
     function handleInitializeConfigDashboard($project_id) {
-        // get the config
-        $config = $this->getModuleConfig($project_id);
-
-        // obfuscate/remove the secrets
-        if (!empty($config["client_secret"])) {
-            $config["client_secret"] = str_pad("", 4, "*") . substr($config["client_secret"], -4);
-        }
-        if (!empty($config["refresh_token"])) {
-            $config["refresh_token"] = str_pad("", 4, "*") . substr($config["refresh_token"], -4);
-        }
-
-        // send it away!
         return [
-            "config" => $config
+            "config" => $this->getModuleConfig($project_id, true)
         ];
     }
 
+    /**
+     * @throws ApiException
+     * @throws ValidationException
+     */
     function handleInitializeMainDashboard($project_id) {
-        return "Hello, handleInitializeMainDashboard!";
+        $response = [
+            "config" => $this->getModuleConfig($project_id, true)
+        ];
+        if ($this->validateConfig($response["config"])) {
+            $response["is-valid"] = true;
+            $response["expire-seconds"] = strtotime($response["config"]["refresh_token_expires"]) - strtotime("now");
+        }
+        return $response;
     }
 
     /**
@@ -73,6 +86,18 @@ trait ModuleUtils {
     }
 
     /**
+     * @throws \Google\Exception
+     */
+    function handleGetAuthorizationUrl($project_id) {
+        // generate a new authorization url
+        $auth_url = $this->getAPIAuthorization($project_id);
+        // send it back to the client, so it can handle the redirect
+        return [
+            "authUrl" => $auth_url
+        ];
+    }
+
+    /**
      * @throws Exception
      */
     function handleSetAlbumName($project_id, $payload) {
@@ -89,8 +114,15 @@ trait ModuleUtils {
         return $album_id;
     }
 
+    /**
+     * @throws \Google\Exception
+     * @throws Exception
+     */
     function getAPIAuthorization($project_id) {
         $config = $this->getModuleConfig($project_id);
+        if (empty($config["client_id"]) || empty($config["client_secret"])) {
+            throw new \Exception("Cannot generate authorization url due to invalid client configuration");
+        }
         $client = new \Google_Client();
         // Path to the downloaded client_secret.json file
         $client->setAuthConfig([
@@ -106,12 +138,12 @@ trait ModuleUtils {
         $client->setPrompt('consent');
         // Set the scopes for the APIs you need to access
         $client->setScopes(self::AUTH_SCOPE);
-        // Create the authorization URL and redirect the user
+        // Create the authorization URL
         return filter_var($client->createAuthUrl(), FILTER_SANITIZE_URL);
     }
 
     /**
-     * @throws \Exception
+     * @throws Exception
      */
     function handleAuthorizationCallback($project_id) {
         $config = $this->getModuleConfig($project_id);
@@ -159,52 +191,73 @@ trait ModuleUtils {
     function handleGetPhotos($project_id) {
         // pull images directly from the project
         try {
-            $result = [];
+            $result = [
+                "log" => [],
+                "errors" => []
+            ];
             $proj = new \Project($project_id);
             // get your token and url from the system settings
             $config = $this->getModuleConfig($project_id);
             // exit early if the api url or token is empty
-            if (!$this->validateConfig($config)) {
-                // log a message or just exit silently
-                return;
-            }
-            // get eligible records with the image name ([file_picture])
-            $eligible_data = \REDCap::getData([
-                "project_id" => $project_id,
-                "fields" => [
-                    "file_picture",
-                    "google_photo"
-                ],
-                "filterLogic" => "[file_picture] <> '' AND [approve] = '1' AND [share] <> '0' AND [google_photo] <> '1'"
-            ]);
-            // if eligible records isn't empty, get records we've already processed
-            $save_data = [];
-            if (!empty($eligible_data)) {
-                $upload_tokens = [];
-                // REDCap API file loop per record
-                foreach ($eligible_data as $record_id => $record) {
-                    $r = $record[$proj->firstEventId];
-                    // get file from REDCap source
-                    list ($mime_type, $file_name, $file_data) = \REDCap::getFile($r["file_picture"]);
-                    // upload to google and cache the upload token result
-                    $upload_tokens[] = $this->uploadImage($file_data, $file_name, $mime_type);
-                    // prep for local save if upload was successful
-                    $record[$proj->firstEventId]["google_photo"] = "1";
-                    $save_data[$record_id] = $record;
-                }
-                if (!empty($upload_tokens)) {
-                    // now that we have all the upload tokens, let's push to the album
-                    // Google Photos API Upload (batch size = 50)
-                    $this->addImagesToAlbum($upload_tokens, $config["album_name"], $config["album_id"]);
-                    // save the local cache of images already processed, so I don't process them again!
-                    if (!empty($save_data)) {
-                        $save_result = \REDCap::saveData($project_id, "array", $save_data, "overwrite");
-                        if (!empty($save_result["errors"])) {
-                            $result["errors"] = $save_result["errors"];
+            if ($this->validateConfig($config)) {
+                // check refresh token for expiration
+                if (strtotime("now") >= strtotime($config["refresh_token_expires"])) {
+                    // expired!
+                    $result["log"][] = "Refresh token expired '" . $config["refresh_token_expires"] . "'.  You must initiate the authorization process again to generate a new refresh token.";
+                } else {
+                    $result["log"][] = "Configuration is valid.";
+                    // get eligible records with the image name ([file_picture])
+                    $eligible_data = \REDCap::getData([
+                        "project_id" => $project_id,
+                        "fields" => [
+                            "file_picture",
+                            "google_photo"
+                        ],
+                        "filterLogic" => "[file_picture] <> '' AND [approve] = '1' AND [share] <> '0' AND [google_photo] <> '1'"
+                    ]);
+                    // if eligible records isn't empty, get records we've already processed
+                    $eligible_count = count($eligible_data);
+                    $result["log"][] = "Identified {$eligible_count} image(s) (records) eligible for upload.";
+                    $save_data = [];
+                    if (!empty($eligible_data)) {
+                        $upload_tokens = [];
+                        // REDCap API file loop per record
+                        foreach ($eligible_data as $record_id => $record) {
+                            try {
+                                $r = $record[$proj->firstEventId];
+                                // get file from REDCap source
+                                [$mime_type, $file_name, $file_data] = \REDCap::getFile($r["file_picture"]);
+                                // upload to google and cache the upload token result
+                                $upload_tokens[] = $this->uploadImage($project_id, $file_data, $file_name, $mime_type);
+                                // prep for local save if upload was successful
+                                $record[$proj->firstEventId]["google_photo"] = "1";
+                                $save_data[$record_id] = $record;
+                            } catch (Exception $ex) {
+                                $result["errors"][] = "Upload for [$record_id] failed: " . $ex->getMessage();
+                            }
                         }
-                        $this->log("Successfully uploaded " . count($save_data) . " images to the Google Photos Album '" . $config["album_name"] . "'.");
+                        if (!empty($upload_tokens)) {
+                            $result["log"][] = "Successfully uploaded " . count($upload_tokens) . " image(s) to the Google account.";
+                            // now that we have all the upload tokens, let's push to the album
+                            // Google Photos API Upload (batch size = 50)
+                            $this->addImagesToAlbum($project_id, $upload_tokens, $config["album_name"], $config["album_id"]);
+                            $result["log"][] = "Uploaded image(s) successfully added to the album.";
+                            // save the local cache of images already processed, so I don't process them again!
+                            if (!empty($save_data)) {
+                                $save_result = \REDCap::saveData($project_id, "array", $save_data, "overwrite");
+                                if (!empty($save_result["errors"])) {
+                                    $result["errors"] = $save_result["errors"];
+                                }
+                                $success_msg = "Successfully uploaded " . count($save_data) . " image(s) to the Google Photos Album '" . $config["album_name"] . "'.";
+                                $result["log"][] = $success_msg;
+                                $this->log($success_msg);
+                            }
+                        }
                     }
                 }
+
+            } else {
+                $result["log"][] = "Configuration is INVALID - one or more required values is missing!  Refer back to the configuration page to see what might be missing.";
             }
         } catch (Exception $ex) {
             $result["errors"] = $ex->getMessage();

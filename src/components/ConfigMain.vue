@@ -1,8 +1,10 @@
 <script setup>
-import {onBeforeMount, onMounted, useTemplateRef, ref, computed, nextTick} from "vue";
+import { onBeforeMount, onMounted, useTemplateRef, ref, computed, nextTick } from "vue";
 import { useToast } from 'primevue/usetoast';
-import {isEmpty, isNotEmpty} from '@primeuix/utils/object';
+import { isEmpty, isNotEmpty } from '@primeuix/utils/object';
 import ModuleUtils from '../ModuleUtils';
+import { DateTime, Interval } from "luxon";
+import { useConfirm } from "primevue/useconfirm";
 
 const debug = ref();
 const config = ref({});
@@ -14,10 +16,46 @@ const albumNameModalInput = useTemplateRef('album-name-modal');
 
 const toast = useToast();
 
+const confirm = useConfirm();
+const confirmRefreshToken = () => {
+    confirm.require({
+        message: "You're about to re-authorize the app and generate a new refresh token.  Are you sure you wish to proceed?",
+        header: 'Request new Refresh Token',
+        icon: 'fa-solid fa-triangle-exclamation',
+        rejectLabel: 'Cancel',
+        rejectProps: {
+            label: 'Cancel',
+            severity: 'secondary',
+            outlined: true
+        },
+        acceptProps: {
+            label: 'Proceed',
+            severity: 'danger'
+        },
+        accept: () => {
+            reAuthorizeClient();
+        }
+    });
+};
+
 /* CLIENT INFO LOGIC */
 const clientInfoDialogState = ref({
     "client_id": null,
     "client_secret": null
+});
+const refreshTokenExpiresHours = computed(() => {
+    if (isNotEmpty(config.value) && isNotEmpty(config.value['refresh_token_expires'])) {
+        // DateTime.fromSQL is able to parse both date and datetime fields
+        // https://moment.github.io/luxon/#/parsing?id=sql
+        let d1 = DateTime.now();
+        let d2 = DateTime.fromSQL(config.value['refresh_token_expires']);
+        // calculate the diff with min/max, if set
+        return Interval.fromDateTimes(d1, d2).length("hours");
+    }
+    return null;
+});
+const refreshTokenExpiresDisplay = computed(() => {
+    return `${config.value['refresh_token_expires']} (${ModuleUtils.hoursToHuman(refreshTokenExpiresHours.value)})`;
 });
 const clientInfoDialogVisible = ref(false);
 const focusClientId = () => {
@@ -45,7 +83,7 @@ const saveClientInfo = () => {
     OrcaGooglePhotoShare().jsmo.ajax('set-client-info', clientInfoDialogState.value)
         .then(function(response) {
             if (isNotEmpty(response['errors'])) {
-                toast.add({ severity: 'error', summary: 'Client Info Update Failed!', detail: response['errors'], life: 5000 });
+                toast.add({ severity: 'error', summary: 'Client Info Update Failed!', detail: response['errors'] });
             } else if (isNotEmpty(response['authUrl'])) {
                 toast.add({ severity: 'success', summary: 'Client Info Saved!', detail: 'Redirecting you to the Google Authorization step.', life: 3000 });
                 setTimeout(() => {
@@ -59,6 +97,25 @@ const saveClientInfo = () => {
         })
     ;
 };
+const reAuthorizeClient = () => {
+    isLoading.value = true;
+    OrcaGooglePhotoShare().jsmo.ajax('get-auth-url', {})
+        .then(function(response) {
+            if (isNotEmpty(response['errors'])) {
+                toast.add({ severity: 'error', summary: 'Unable to Re-Authorize!', detail: response['errors'] });
+            } else if (isNotEmpty(response['authUrl'])) {
+                toast.add({ severity: 'success', summary: 'Redirecting..', detail: 'Redirecting you to the Google Authorization step.', life: 3000 });
+                setTimeout(() => {
+                    window.location.href = response['authUrl'];
+                }, 3000);
+            }
+        })
+        .catch(function(err) {
+            debug.value = err;
+            isLoading.value = false;
+        })
+    ;
+}
 
 const clientInfoComplete = () => {
     return config.value
@@ -173,6 +230,7 @@ onBeforeMount(() => {
         <i class="fa-solid fa-gears">&ZeroWidthSpace;</i>&nbsp;Orca Google Photos Configuration
     </div>
     <Toast />
+    <ConfirmDialog></ConfirmDialog>
     <BlockUI :blocked="isLoading">
         <div class="card module-config" :class="{ modified: isModified }">
             <div class="card-body">
@@ -184,6 +242,12 @@ onBeforeMount(() => {
                     <h4 class="mb-2 pb-1 border-dark border-bottom border-3">
                         <span>General Configuration</span>
                     </h4>
+                    <!-- base_domain -->
+                    <div class="form-label fw-bold mb-1 mt-2 d-inline-block">Base Domain</div>
+                    <div class="input-group">
+                        <button v-if="clipboardEnabled" @click="copyToClipboard(config['base_domain'])" class="btn btn-primary"><i class="fa-solid fa-copy"></i></button>
+                        <input class="form-control font-monospace text-muted" type="text" v-model="config['base_domain']" readonly disabled />
+                    </div>
                     <!-- redirect_uri -->
                     <div class="form-label fw-bold mb-1 mt-2 d-inline-block">Redirect URI</div>
                     <div class="input-group">
@@ -211,8 +275,11 @@ onBeforeMount(() => {
                     <input class="form-control font-monospace text-muted" type="text" v-model="config['client_secret']" readonly disabled />
                     <!-- refresh_token -->
                     <div class="form-label fw-bold mt-3 mb-1 d-inline-block">Refresh Token&nbsp;<i class="fas fa-info-circle text-primary fs-6" v-tooltip="'The full value is never displayed here, to ensure it stays secure.'"></i></div>
-                    <input class="form-control font-monospace text-muted" type="text" v-model="config['refresh_token']" readonly disabled />
-                    <div v-if="isNotEmpty(config['refresh_token_expires'])" class="text-secondary fst-italic mt-1">Expires: <strong>{{ config['refresh_token_expires'] }}</strong></div>
+                    <div class="input-group">
+                        <button v-if="isNotEmpty(config['refresh_token'])" @click="confirmRefreshToken" class="btn btn-danger"><i class="fa-solid fa-rotate"></i></button>
+                        <input class="form-control font-monospace text-muted" type="text" v-model="config['refresh_token']" readonly disabled />
+                    </div>
+                    <div v-if="isNotEmpty(config['refresh_token_expires'])" class="text-secondary fst-italic mt-1">Expires: <strong>{{ refreshTokenExpiresDisplay }}</strong></div>
                     <div class="d-flex gap-3 mt-3">
                         <button class="btn btn-sm btn-primary" @click="editClientInfo"><i class="fas fa-pen-to-square"></i>&nbsp;Edit Client Info</button>
                     </div>

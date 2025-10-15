@@ -2,13 +2,30 @@
 
 As the name implies, this external module pulls approved images/gifs/videos that are shared via REDCap survey and publishes them to a Google Photos Album. 
 
-# Setup
+# Introduction
 
 I tried to do my best to describe the overall process, as I went through it.  Some steps may not match exactly what you experience, but they should be close enough to get you through and complete the setup.
 
-## Step 1 - Having a Google Account!
+# Requirements
 
-Ensure you have a Google Account that you have full control of.  With this account, you will do the following:
+## Linux-based environments
+
+You need to install and enable the following PHP Extension, if not already installed:
+
+- BCMath
+ 
+> **NOTE:** You may need to target your PHP version
+> 
+> `sudo apt install php8.3-bcmath # Example for PHP 8.3`
+
+This is required by the Google libraries during the upload process.
+
+*Windows-based PHP installs have built-in support, so they don't need the explicit extension to be installed.*
+
+## Having a Google Account!
+
+Ensure you have a Google Account that you have full control of.  With this account, you will need:
+
 - Ability to create and manage a Photos Album
   - The album has to be created by the API code, so no need to create one ahead of time
 - Access to https://console.cloud.google.com/
@@ -16,7 +33,9 @@ Ensure you have a Google Account that you have full control of.  With this accou
 - The account must have enough cloud storage space available for the album
   - For reference, The 562 images in the RCC25 album is at most only a few GB
 
-## Step 2 - Enabling the Module
+# Setup
+
+## Step 1 - Enabling the Module
 
 Subsequent steps will require information that the module's configuration will provide to you after enabling it in your project.
 
@@ -27,7 +46,7 @@ Subsequent steps will require information that the module's configuration will p
    - **Redirect URI**
       - This is a URL callback to the module that will be used for the initial authorization step (after you've obtained your Client ID and Secret)
 
-## Step 3 - Google Cloud Console
+## Step 2 - Google Cloud Console
 
 Using the Google account that will host the Photos Album, use the link below to get to the Google Cloud Console.
 
@@ -86,11 +105,13 @@ Here, we'll click on "Create client"
 
 Back on your Google Cloud home page, in the "APIs & Services" section, search for the "Photos Library API" and Enable it (if not already enabled by default).
 
-## Step 4 - Client Info & Authorization
+## Step 3 - Client Info & Authorization
 
 Now that we have the Client ID and Secret, we need to provide those values to the module, so it can then trigger the authorization process.
 
+## Step 4 - Album Creation
 
+TODO
 
 ---
 

@@ -12,9 +12,13 @@ import Tooltip from 'primevue/tooltip';
 import Toast from 'primevue/toast';
 import ToastService from 'primevue/toastservice';
 
+import ConfirmDialog from 'primevue/confirmdialog';
+import ConfirmationService from 'primevue/confirmationservice';
+
 const app = createApp(App);
 
 app.use(ToastService);
+app.use(ConfirmationService);
 app.use(PrimeVue, {
     theme: {
         preset: Lara
@@ -31,5 +35,6 @@ app.component("BlockUI", BlockUI);
 app.component("ProgressSpinner", ProgressSpinner);
 app.component("Dialog", Dialog);
 app.component("Toast", Toast);
+app.component("ConfirmDialog", ConfirmDialog);
 
 app.mount("#GOOGLE_PHOTOS_CONFIG");

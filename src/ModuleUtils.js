@@ -62,6 +62,14 @@ export default class ModuleUtils {
         }
         return t;
     }
+    static hoursToHuman(t) {
+        if (isNumber(t)) {
+            return Duration.fromObject({ hours: parseInt(t) })
+                .rescale()
+                .toHuman();
+        }
+        return t;
+    }
 
     static afterDateTimeErrorMessage = (field, target, extras) => {
         let d1 = isNotEmpty(field) ? field : 'placeholder';
