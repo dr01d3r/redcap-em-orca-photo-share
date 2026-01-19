@@ -47,15 +47,17 @@ const refreshTokenExpiresHours = computed(() => {
     if (isNotEmpty(config.value) && isNotEmpty(config.value['refresh_token_expires'])) {
         // DateTime.fromSQL is able to parse both date and datetime fields
         // https://moment.github.io/luxon/#/parsing?id=sql
-        let d1 = DateTime.now();
-        let d2 = DateTime.fromSQL(config.value['refresh_token_expires']);
+        let d = DateTime.fromSQL(config.value['refresh_token_expires']);
         // calculate the diff with min/max, if set
-        return Interval.fromDateTimes(d1, d2).length("hours");
+        return d.diffNow('hours').hours;
     }
     return null;
 });
 const refreshTokenExpiresDisplay = computed(() => {
-    return `${config.value['refresh_token_expires']} (${ModuleUtils.hoursToHuman(refreshTokenExpiresHours.value)})`;
+    if (refreshTokenExpiresHours.value > 0) {
+        return `${config.value['refresh_token_expires']} (${ModuleUtils.hoursToHuman(refreshTokenExpiresHours.value)})`;
+    }
+    return `${config.value['refresh_token_expires']}`;
 });
 const clientInfoDialogVisible = ref(false);
 const focusClientId = () => {
@@ -122,6 +124,7 @@ const clientInfoComplete = () => {
         && isNotEmpty(config.value['client_id'])
         && isNotEmpty(config.value['client_secret'])
         && isNotEmpty(config.value['refresh_token'])
+        && isNotEmpty(refreshTokenExpiresHours.value) && refreshTokenExpiresHours.value > 0
     ;
 }
 
@@ -232,6 +235,12 @@ onBeforeMount(() => {
     <Toast />
     <ConfirmDialog></ConfirmDialog>
     <BlockUI :blocked="isLoading">
+        <div v-if="isNotEmpty(refreshTokenExpiresHours) && refreshTokenExpiresHours < 0" class="alert alert-danger fs-6 mt-3">
+            <div class="fw-bold fs-5">Refresh Token is Expired!</div>
+            <hr class="my-2" />
+            <div><strong>Expired:</strong> {{ refreshTokenExpiresDisplay }}</div>
+            <div class="mt-2">Integration is disabled until a new refresh token is obtained. Click the refresh button (<i class="fa-solid fa-rotate text-danger"></i>) below to re-authorize the application and obtain a new refresh token.</div>
+        </div>
         <div class="card module-config" :class="{ modified: isModified }">
             <div class="card-body">
                 <template v-if="isEmpty(config)">
@@ -279,7 +288,7 @@ onBeforeMount(() => {
                         <button v-if="isNotEmpty(config['refresh_token'])" @click="confirmRefreshToken" class="btn btn-danger"><i class="fa-solid fa-rotate"></i></button>
                         <input class="form-control font-monospace text-muted" type="text" v-model="config['refresh_token']" readonly disabled />
                     </div>
-                    <div v-if="isNotEmpty(config['refresh_token_expires'])" class="text-secondary fst-italic mt-1">Expires: <strong>{{ refreshTokenExpiresDisplay }}</strong></div>
+                    <div v-if="isNotEmpty(refreshTokenExpiresHours)" class="text-secondary fst-italic mt-1">Expires: <strong>{{ refreshTokenExpiresDisplay }}</strong></div>
                     <div class="d-flex gap-3 mt-3">
                         <button class="btn btn-sm btn-primary" @click="editClientInfo"><i class="fas fa-pen-to-square"></i>&nbsp;Edit Client Info</button>
                     </div>
@@ -289,19 +298,19 @@ onBeforeMount(() => {
                     <h4 class="mb-2 pb-1 border-dark border-bottom border-3">
                         <span>Album Configuration</span>
                     </h4>
+                    <!-- album_name -->
+                    <div class="form-label fw-bold mb-1 mt-3 d-inline-block">Google Photos Album Name</div>
+                    <input class="form-control font-monospace text-muted" type="text" v-model="config['album_name']" readonly disabled />
+                    <!-- album_id -->
+                    <div class="form-label fw-bold mb-1 mt-3 d-inline-block">Google Photos Album ID</div>
+                    <input class="form-control font-monospace text-muted" type="text" v-model="config['album_id']" readonly disabled />
                     <template v-if="canCreateAlbum">
-                        <!-- album_name -->
-                        <div class="form-label fw-bold mb-1 mt-3 d-inline-block">Google Photos Album Name</div>
-                        <input class="form-control font-monospace text-muted" type="text" v-model="config['album_name']" readonly disabled />
-                        <!-- album_id -->
-                        <div class="form-label fw-bold mb-1 mt-3 d-inline-block">Google Photos Album ID</div>
-                        <input class="form-control font-monospace text-muted" type="text" v-model="config['album_id']" readonly disabled />
                         <div class="d-flex gap-3 mt-3">
                             <button class="btn btn-sm btn-primary" @click="editAlbumName"><i class="fas fa-pen-to-square"></i>&nbsp;Edit Album Info</button>
                         </div>
                     </template>
                     <template v-else>
-                        <div class="alert alert-warning">Cannot Configure the Photo Album until the previous configuration step is complete!</div>
+                        <div class="alert alert-warning mt-3">Cannot Configure the Photo Album until the previous configuration step is complete!</div>
                     </template>
                 </template>
             </div>

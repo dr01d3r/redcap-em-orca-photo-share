@@ -114,7 +114,6 @@ trait GooglePhotosUtils {
         if (empty($mime_type)) {
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $mime_type = finfo_buffer($finfo, $image_data);
-            finfo_close($finfo);
         }
 
         // Upload the image and get the upload token

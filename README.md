@@ -27,7 +27,7 @@ This is required by the Google libraries during the upload process.
 Ensure you have a Google Account that you have full control of.  With this account, you will need:
 
 - Ability to create and manage a Photos Album
-  - The album has to be created by the API code, so no need to create one ahead of time
+  - **The album has to be created by the API code, so do not create one ahead of time!**
 - Access to https://console.cloud.google.com/
   - This is for configuring the integration between the REDCap EM and the Photos API
 - The account must have enough cloud storage space available for the album
@@ -35,7 +35,28 @@ Ensure you have a Google Account that you have full control of.  With this accou
 
 # Setup
 
-## Step 1 - Enabling the Module
+## Step 1 - Creating your REDCap Project
+
+This module depends on specific fields existing with specific values, when processing photos for upload.
+
+> **NOTE:** Refer to the latest release in GitHub for a Project XML that you can use to get started!
+> https://github.com/dr01d3r/redcap-em-orca-photo-share/releases
+
+- [`file_picture`]
+  - Field Type: `file`
+  - The file upload field that the images get uploaded to.
+- [`share`]
+  - Field Type: `radio` or `yesno`
+  - An acknowledgement field by the submitter to allow us to share their image.
+- [`approve`]
+  - Field Type: `yesno`
+  - An acknowledgement field by a reviewer to approve the submission for upload to the album.
+  - This should exist on a form separate from the survey instrument or `@HIDDEN-SURVEY`.
+- [`google_photo`]
+  - Field Type: `yesno`
+  - A behind-the-scenes field the to track images that have already been uploaded to the album.
+
+## Step 2 - Enabling the Module
 
 Subsequent steps will require information that the module's configuration will provide to you after enabling it in your project.
 
@@ -46,7 +67,7 @@ Subsequent steps will require information that the module's configuration will p
    - **Redirect URI**
       - This is a URL callback to the module that will be used for the initial authorization step (after you've obtained your Client ID and Secret)
 
-## Step 2 - Google Cloud Console
+## Step 3 - Google Cloud Console
 
 Using the Google account that will host the Photos Album, use the link below to get to the Google Cloud Console.
 
@@ -112,30 +133,70 @@ https://www.googleapis.com/auth/photoslibrary.appendonly
 
 Back on your Google Cloud home page, in the "APIs & Services" section, search for the "Photos Library API" and Enable it (if not already enabled by default).
 
-## Step 3 - Client Info & Authorization
+## Step 4 - Client Info & Authorization (in REDCap)
 
 Now that we have the Client ID and Secret, we need to provide those values to the module, so it can then trigger the authorization process.
 
-## Step 4 - Album Creation
+- Back in the Google Photos Configuration page, click on the "Edit client Info" button.  In the pop-up, provide your Client ID and Client Secret values and click Save.
+  - As noted, a new Authorization Request will be initiated.  You'll be automatically taken to a Google page to authorize your REDCap domain to interact with your Google Account, using the scopes we defined earlier.
+  - You'll be prompted with a warning that the app is in test mode.
+    - Click "Continue"
+  - ![photo_share_1](images/photo_share_1.png)
+  - The next prompt will mention the scopes being requested.
+    - ***NOTE**: In my screenshot below, I've already gone through the process once, so you likely won't see the top section that indicates it "already has some access..."*
+  - Click "Continue"
+  - ![photo_share_2](images/photo_share_2.png)
+  - This should bring you back to the REDCap config page and you should see a success message that a Refresh Token was generated!
 
-TODO
+### Refreshing your Token!
+
+Because we're running this app in "testing" mode, Refresh Tokens have a 7-day lifespan and must be renewed regularly.  This cannot be automated either, so manual intervention is necessary.
+
+- On the configuration page, there's a convenient refresh button next to the Refresh Token.
+- Clicking it will take you back through the same authorization process as above.
+
+## Step 5 - Album Configuration
+
+Now that you have a valid refresh token, you can create the Album that images will be uploaded to.
+
+- You should now be able to click the "Edit Album Info" button at the bottom of the config page.
+- You'll get a dialog that prompts you for an album name.
+- Provide a name and click "Save".
+  - This will send a request to Google to create the album.  If successful, an Album ID will be returned and stored in REDCap.
 
 ---
 
->  
+## Uploading Images to the Album
 
->  
+Congratulations!  Now you're ready to upload images to the album.
 
->  
+### Requirements
 
->  
+For an image to be eligible for upload, the following filter logic is used:
 
->  
+- `[file_picture] <> '' AND [share] <> '0' AND [approve] = '1' AND [google_photo] <> '1'`
+  - The upload field must have a value
+  - The submitter did not decline sharing
+  - Someone reviewed and approved the image for upload
+  - The image hasn't already been uploaded
 
->  
+Additionally, your configuration must be valid; otherwise, the upload process will not run.
 
->  
+- Client ID and Client Secret cannot be blank
+- Refresh Token cannot be blank and it cannot be expired
+- The Album ID cannot be blank 
 
->  
+### Automated and Manual Upload
+
+Images can be uploaded in one of two ways:
+
+- The automated cron job
+  - This runs on a 30-minute interval, based on whenever the module was enabled in the project.
+  - For this to run, it must be enabled in the built-in module config
+    - Click on the "Manage" link in the External Modules section of the left-hand sidebar
+    - Click the "Configure" button for this module
+    - For "Cron Job Enabled" select "Enabled" in the dropdown and click "Save"
+- The manual "Google Photos Runner" plugin page
+  - This is a simple interface that allows you to initiate the upload process whenever you want!
 
 ---

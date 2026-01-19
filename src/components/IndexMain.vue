@@ -13,15 +13,17 @@ const refreshTokenExpiresHours = computed(() => {
     if (isNotEmpty(config.value) && isNotEmpty(config.value['refresh_token_expires'])) {
         // DateTime.fromSQL is able to parse both date and datetime fields
         // https://moment.github.io/luxon/#/parsing?id=sql
-        let d1 = DateTime.now();
-        let d2 = DateTime.fromSQL(config.value['refresh_token_expires']);
+        let d = DateTime.fromSQL(config.value['refresh_token_expires']);
         // calculate the diff with min/max, if set
-        return Interval.fromDateTimes(d1, d2).length("hours");
+        return d.diffNow('hours').hours;
     }
     return null;
 });
 const refreshTokenExpiresDisplay = computed(() => {
-    return `${config.value['refresh_token_expires']} (${ModuleUtils.hoursToHuman(refreshTokenExpiresHours.value)})`;
+    if (refreshTokenExpiresHours.value > 0) {
+        return `${config.value['refresh_token_expires']} (${ModuleUtils.hoursToHuman(refreshTokenExpiresHours.value)})`;
+    }
+    return `${config.value['refresh_token_expires']}`;
 });
 
 const init = () => {
@@ -77,6 +79,12 @@ onBeforeMount(() => {
                     <hr class="my-2" />
                     <div class="fs-6">Unable to execute the API Runner as the configuration is incomplete. Please refer back to the Configuration page to complete the set up.</div>
                 </div>
+                <div v-else-if="isNotEmpty(refreshTokenExpiresHours) && refreshTokenExpiresHours < 0" class="alert alert-danger fs-6 mt-3">
+                    <div class="fw-bold fs-5">Refresh Token is Expired!</div>
+                    <hr class="my-2" />
+                    <div><strong>Expired:</strong> {{ refreshTokenExpiresDisplay }}</div>
+                    <div class="mt-2">Integration is disabled until a new refresh token is obtained. Please re-authorize the application on the configuration page to obtain a new refresh token.</div>
+                </div>
                 <div v-else-if="isNotEmpty(refreshTokenExpiresHours) && refreshTokenExpiresHours <= 24" class="alert alert-danger fs-6 mt-3">
                     <div class="fw-bold fs-5">Refresh Token about to Expire!</div>
                     <hr class="my-2" />
@@ -95,7 +103,7 @@ onBeforeMount(() => {
                 </div>
             </div>
             <div class="card-body">
-                <button class="btn btn-danger" tabindex="-1" @click="doRunner" :disabled="isInvalid">Execute</button>
+                <button v-if="isNotEmpty(refreshTokenExpiresHours) && refreshTokenExpiresHours > 0" class="btn btn-danger" tabindex="-1" @click="doRunner"><i class="fa-solid fa-cloud-arrow-up"></i>&nbsp;Process Photos</button>
             </div>
         </div>
         <pre v-if="debug" class="mt-3">{{ debug }}</pre>
